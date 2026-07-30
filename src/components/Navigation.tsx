@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   LayoutDashboard, List, CreditCard, ArrowLeftRight, PiggyBank,
-  FileText, Target, User, MoreHorizontal, LogOut, ChevronLeft,
+  FileText, Target, User, MoreHorizontal, LogOut, ChevronLeft, Sparkles,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { PageId } from '@/lib/types';
@@ -16,6 +16,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   'file-text': FileText,
   'target': Target,
   'user': User,
+  'sparkles': Sparkles,
 };
 
 interface NavItem {
@@ -33,6 +34,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'transfer', label: 'Transfer', icon: 'arrow-left-right' },
   { id: 'budget', label: 'Budgeting', icon: 'piggy-bank', badge: true },
   { id: 'report', label: 'Laporan', icon: 'file-text', hideMobile: true },
+  { id: 'advisor', label: 'Asisten AI', icon: 'sparkles', badge: true },
   { id: 'goals', label: 'Target & Berulang', icon: 'target', hideMobile: true, badge: true },
   { id: 'profile', label: 'Profil', icon: 'user', hideMobile: true },
 ];

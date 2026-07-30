@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/Modal';
-import type { Account } from '@/lib/types';
+import type { Account, AccountType } from '@/lib/types';
 import { ACCOUNT_COLORS, ACCOUNT_TYPES } from '@/lib/constants';
 import { generateId } from '@/lib/format';
 
@@ -8,11 +8,12 @@ interface AccountModalProps {
   open: boolean;
   onClose: () => void;
   editingAcc: Account | null;
+  accountTypes: AccountType[];
   onSave: (acc: Account) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }
 
-export function AccountModal({ open, onClose, editingAcc, onSave, onDelete }: AccountModalProps) {
+export function AccountModal({ open, onClose, editingAcc, accountTypes, onSave, onDelete }: AccountModalProps) {
   const [name, setName] = useState('');
   const [type, setType] = useState('Tabungan');
   const [colorId, setColorId] = useState('gold');
@@ -74,7 +75,7 @@ export function AccountModal({ open, onClose, editingAcc, onSave, onDelete }: Ac
       <div className="mb-3.5">
         <label className="label-base">Tipe Akun</label>
         <select value={type} onChange={(e) => setType(e.target.value)} className="input-base">
-          {ACCOUNT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+          {(accountTypes.length > 0 ? accountTypes.map((t) => t.name) : ACCOUNT_TYPES).map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
       </div>
       <div>

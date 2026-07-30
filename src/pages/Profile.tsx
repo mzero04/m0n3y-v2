@@ -1,22 +1,26 @@
 import { useState } from 'react';
 import { Trash2, Plus, ChevronUp, ChevronDown } from 'lucide-react';
-import type { Category, UserProfile } from '@/lib/types';
+import type { Category, UserProfile, AccountType, Account } from '@/lib/types';
 import { StatusBox } from '@/components/ui/Feedback';
 
 interface ProfileProps {
   profile: UserProfile;
   categories: Category[];
+  accountTypes: AccountType[];
+  accounts: Account[];
   onSaveName: (name: string) => Promise<{ error: { message: string } | null }>;
   onUploadAvatar: (file: File) => Promise<string | null>;
   onResetPassword: (email: string) => Promise<{ error: { message: string } | null }>;
   onAddCategory: (type: 'in' | 'out', name: string) => Promise<boolean>;
   onDeleteCategory: (id: string) => Promise<void>;
   onReorderCategory: (id: string, direction: 'up' | 'down', type: 'in' | 'out') => Promise<void>;
+  onAddAccountType: (name: string) => Promise<boolean>;
+  onDeleteAccountType: (id: string) => Promise<void>;
 }
 
 export function Profile({
-  profile, categories, onSaveName, onUploadAvatar, onResetPassword,
-  onAddCategory, onDeleteCategory, onReorderCategory,
+  profile, categories, accountTypes, accounts, onSaveName, onUploadAvatar, onResetPassword,
+  onAddCategory, onDeleteCategory, onReorderCategory, onAddAccountType, onDeleteAccountType,
 }: ProfileProps) {
   const [fullName, setFullName] = useState(profile.fullName);
   const [nameStatus, setNameStatus] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
@@ -25,6 +29,7 @@ export function Profile({
   const [savingName, setSavingName] = useState(false);
   const [newCatIn, setNewCatIn] = useState('');
   const [newCatOut, setNewCatOut] = useState('');
+  const [newType, setNewType] = useState('');
 
   const inCats = categories.filter((c) => c.type === 'in').sort((a, b) => a.sort_order - b.sort_order);
   const outCats = categories.filter((c) => c.type === 'out').sort((a, b) => a.sort_order - b.sort_order);
@@ -66,6 +71,21 @@ export function Profile({
     if (ok) {
       if (type === 'in') setNewCatIn(''); else setNewCatOut('');
     }
+  };
+
+  const handleAddType = async () => {
+    if (!newType) return;
+    const ok = await onAddAccountType(newType);
+    if (ok) setNewType('');
+  };
+
+  const handleDeleteType = (id: string, name: string) => {
+    const inUse = accounts.filter((a) => a.type === name).length;
+    if (inUse > 0) {
+      alert(`Tipe akun "${name}" sedang dipakai oleh ${inUse} akun. Ubah tipe akun tersebut sebelum menghapus.`);
+      return;
+    }
+    onDeleteAccountType(id);
   };
 
   const renderAvatar = () => {
@@ -179,6 +199,38 @@ export function Profile({
           <h3 className="font-display text-[15px] font-semibold">Kategori Pengeluaran</h3>
           <p className="text-xs text-[#8C9BBE] mt-2">Atur urutan pakai panah. Kategori bawaan tidak bisa dihapus, hanya kategori buatanmu sendiri.</p>
           {renderCategoryList(outCats, 'out')}
+        </div>
+      </div>
+
+      {/* Account Types */}
+      <div className="card-base mt-[18px]">
+        <h3 className="font-display text-[15px] font-semibold">Tipe Akun Bank</h3>
+        <p className="text-xs text-[#8C9BBE] mt-2">Kelola daftar tipe akun yang tersedia saat menambah akun bank baru. Tipe yang sedang dipakai akun tidak bisa dihapus.</p>
+        <div className="mt-3">
+          <div className="flex gap-2 mb-3">
+            <input
+              type="text"
+              value={newType}
+              onChange={(e) => setNewType(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleAddType()}
+              placeholder="Tambah tipe akun baru (mis. Bank, E-Wallet)..."
+              className="input-base flex-1"
+            />
+            <button onClick={handleAddType} className="btn-primary btn-sm"><Plus size={14} /> Tambah</button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {accountTypes.map((t) => {
+              const inUse = accounts.filter((a) => a.type === t.name).length;
+              return (
+                <div key={t.id} className="flex items-center gap-2 py-1.5 px-3 bg-[#182742] rounded-md text-[13px]">
+                  {t.name}
+                  {inUse > 0 && <span className="text-[10px] text-[#8C9BBE] font-semibold">({inUse} akun)</span>}
+                  <button onClick={() => handleDeleteType(t.id, t.name)} className="text-[#8C9BBE] hover:text-[#FF6B6B] cursor-pointer ml-1"><Trash2 size={13} /></button>
+                </div>
+              );
+            })}
+            {accountTypes.length === 0 && <div className="text-[#8C9BBE] text-xs">Belum ada tipe akun.</div>}
+          </div>
         </div>
       </div>
     </div>
