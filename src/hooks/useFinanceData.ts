@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import type {
   Account, Category, Transaction, Transfer, Budget,
-  OpeningBalance, Cicilan, SavingsGoal, RecurringTransaction,
+  OpeningBalance, Cicilan, SavingsGoal, RecurringTransaction, AccountType,
 } from '@/lib/types';
 import { DEFAULT_CATEGORIES_IN, DEFAULT_CATEGORIES_OUT, DEFAULT_ACCOUNTS } from '@/lib/constants';
 import { generateId } from '@/lib/format';
@@ -17,6 +17,7 @@ export interface FinanceData {
   cicilan: Cicilan[];
   savingsGoals: SavingsGoal[];
   recurring: RecurringTransaction[];
+  accountTypes: AccountType[];
   loading: boolean;
   error: string | null;
   refetch: () => void;
@@ -32,6 +33,7 @@ export function useFinanceData(userId: string | null): FinanceData {
   const [cicilan, setCicilan] = useState<Cicilan[]>([]);
   const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
   const [recurring, setRecurring] = useState<RecurringTransaction[]>([]);
+  const [accountTypes, setAccountTypes] = useState<AccountType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,7 +45,7 @@ export function useFinanceData(userId: string | null): FinanceData {
     setLoading(true);
     setError(null);
     try {
-      const [acc, cat, tx, tr, bud, ob, cic, sg, rec] = await Promise.all([
+      const [acc, cat, tx, tr, bud, ob, cic, sg, rec, at] = await Promise.all([
         supabase.from('accounts').select('*').order('sort_order'),
         supabase.from('categories').select('*').order('sort_order'),
         supabase.from('transactions').select('*').order('date', { ascending: false }),
@@ -53,6 +55,7 @@ export function useFinanceData(userId: string | null): FinanceData {
         supabase.from('cicilan').select('*').order('created_at'),
         supabase.from('savings_goals').select('*').order('created_at'),
         supabase.from('recurring_transactions').select('*').order('next_due'),
+        supabase.from('account_types').select('*').order('sort_order'),
       ]);
 
       if (acc.error) throw acc.error;
@@ -64,6 +67,7 @@ export function useFinanceData(userId: string | null): FinanceData {
       if (cic.error) throw cic.error;
       if (sg.error) throw sg.error;
       if (rec.error) throw rec.error;
+      if (at.error) throw at.error;
 
       if ((acc.data ?? []).length === 0) {
         await seedDefaultAccounts(userId);
@@ -87,6 +91,13 @@ export function useFinanceData(userId: string | null): FinanceData {
       setCicilan((cic.data ?? []) as Cicilan[]);
       setSavingsGoals((sg.data ?? []) as SavingsGoal[]);
       setRecurring((rec.data ?? []) as RecurringTransaction[]);
+      setAccountTypes((at.data ?? []) as AccountType[]);
+
+      if ((at.data ?? []).length === 0) {
+        await seedDefaultAccountTypes(userId);
+        const { data: seededAt } = await supabase.from('account_types').select('*').order('sort_order');
+        setAccountTypes((seededAt ?? []) as AccountType[]);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal memuat data');
     } finally {
@@ -102,9 +113,15 @@ export function useFinanceData(userId: string | null): FinanceData {
 
   return {
     accounts, categories, transactions, transfers, budgets,
-    openingBalances, cicilan, savingsGoals, recurring,
+    openingBalances, cicilan, savingsGoals, recurring, accountTypes,
     loading, error, refetch,
   };
+}
+
+async function seedDefaultAccountTypes(userId: string) {
+  const names = ['Bank', 'E-Wallet', 'Tunai', 'Kartu Kredit', 'Investasi', 'Lainnya'];
+  const rows = names.map((name, i) => ({ user_id: userId, name, sort_order: i }));
+  await supabase.from('account_types').insert(rows);
 }
 
 async function seedDefaultAccounts(userId: string) {
@@ -158,6 +175,50 @@ export async function deleteTransaction(id: string) {
 }
 
 // ─── Transfer helpers ────────────────────────────────
+export async function insertTransferWithFee(
+  userId: string,
+  tr: { from_account: string; to_account: string; amount: number; admin_fee: number; note: string | null; date: string; time: string | null },
+) {
+  let feeTxId: string | null = null;
+  if (tr.admin_fee > 0) {
+    const { data: feeTx, error: feeErr } = await supabase.from('transactions').insert({
+      user_id: userId,
+      type: 'out',
+      description: `Biaya Admin Transfer: ${tr.from_account} → ${tr.to_account}`,
+      amount: tr.admin_fee,
+      account: tr.from_account,
+      category: 'Biaya Admin',
+      date: tr.date,
+      time: tr.time,
+    }).select().single();
+    if (feeErr) return { data: null, error: feeErr };
+    feeTxId = (feeTx as Transaction).id;
+  }
+  const { data, error } = await supabase.from('transfers').insert({
+    user_id: userId,
+    from_account: tr.from_account,
+    to_account: tr.to_account,
+    amount: tr.amount,
+    admin_fee: tr.admin_fee,
+    fee_tx_id: feeTxId,
+    note: tr.note,
+    date: tr.date,
+    time: tr.time,
+  }).select().single();
+  if (error && feeTxId) {
+    await supabase.from('transactions').delete().eq('id', feeTxId);
+  }
+  return { data, error };
+}
+
+export async function deleteTransferWithFee(transfer: Transfer) {
+  if (transfer.fee_tx_id) {
+    await supabase.from('transactions').delete().eq('id', transfer.fee_tx_id);
+  }
+  const { error } = await supabase.from('transfers').delete().eq('id', transfer.id);
+  return { error };
+}
+
 export async function insertTransfer(userId: string, tr: Omit<Transfer, 'id'>) {
   const { data, error } = await supabase.from('transfers').insert({ ...tr, user_id: userId }).select().single();
   return { data, error };
@@ -252,5 +313,16 @@ export async function deleteCategory(id: string) {
 
 export async function updateCategorySort(id: string, sortOrder: number) {
   const { error } = await supabase.from('categories').update({ sort_order: sortOrder }).eq('id', id);
+  return { error };
+}
+
+// ─── Account type helpers ───────────────────────────
+export async function insertAccountType(userId: string, name: string) {
+  const { data, error } = await supabase.from('account_types').insert({ user_id: userId, name }).select().single();
+  return { data, error };
+}
+
+export async function deleteAccountType(id: string) {
+  const { error } = await supabase.from('account_types').delete().eq('id', id);
   return { error };
 }

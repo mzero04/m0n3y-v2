@@ -33,6 +33,7 @@ export function TransferPage({ transfers, accounts, onAddTransfer, onDeleteTrans
                   <th className="pb-2 pt-0 px-2.5 border-b border-[#223252]">Ke</th>
                   <th className="pb-2 pt-0 px-2.5 border-b border-[#223252]">Catatan</th>
                   <th className="pb-2 pt-0 px-2.5 border-b border-[#223252]">Jumlah</th>
+                  <th className="pb-2 pt-0 px-2.5 border-b border-[#223252]">Biaya Admin</th>
                   <th className="pb-2 pt-0 px-2.5 border-b border-[#223252]"></th>
                 </tr>
               </thead>
@@ -44,6 +45,7 @@ export function TransferPage({ transfers, accounts, onAddTransfer, onDeleteTrans
                     <td className="px-2.5 py-2.5">{t.to_account}</td>
                     <td className="px-2.5 py-2.5 text-[#8C9BBE]">{t.note ?? '-'}</td>
                     <td className="px-2.5 py-2.5 font-bold text-[#9B8CFF]">{formatRupiah(t.amount)}</td>
+                    <td className="px-2.5 py-2.5 font-semibold text-[#FF6B6B]">{t.admin_fee ? formatRupiah(t.admin_fee) : '-'}</td>
                     <td className="px-2.5 py-2.5">
                       <button onClick={() => onDeleteTransfer(t.id)} className="text-[#8C9BBE] hover:text-[#FF6B6B] transition-colors cursor-pointer">
                         <Trash2 size={14} />
@@ -62,6 +64,7 @@ export function TransferPage({ transfers, accounts, onAddTransfer, onDeleteTrans
           <div className="bg-[#0F1A2E] border border-[#223252] rounded-xl p-4 text-[13.5px] text-[#8C9BBE] leading-7">
             Transfer memindahkan saldo antar akun. Saldo akun asal <b className="text-[#EAF0FB]">berkurang</b>, akun tujuan <b className="text-[#EAF0FB]">bertambah</b>.
             Transfer <b className="text-[#EAF0FB]">tidak muncul</b> di laporan pemasukan/pengeluaran karena uang tetap milikmu.
+            Namun <b className="text-[#FF6B6B]">biaya admin</b> antar bank akan otomatis tercatat sebagai pengeluaran dengan kategori “Biaya Admin”.
           </div>
           <div className="mt-4">
             <div className="text-xs text-[#8C9BBE] font-semibold mb-2">Jumlah Akun: {accounts.length}</div>

@@ -7,13 +7,14 @@ import { todayISO } from '@/lib/format';
 import { getTotalBalance, getBudgetProgress, getGoalsDueReminders } from '@/lib/compute';
 import {
   insertTransaction, updateTransaction, deleteTransaction,
-  insertTransfer, deleteTransfer,
+  insertTransferWithFee, deleteTransferWithFee,
   insertAccount, updateAccount, deleteAccount,
   upsertBudget, deleteBudget, upsertOpeningBalance,
   insertCicilan, updateCicilan, deleteCicilan,
   insertSavingsGoal, updateSavingsGoal, deleteSavingsGoal,
   insertRecurring, updateRecurring, deleteRecurring,
   insertCategory, deleteCategory, updateCategorySort,
+  insertAccountType, deleteAccountType,
 } from '@/hooks/useFinanceData';
 
 import { Spinner } from '@/components/ui/Feedback';
@@ -38,6 +39,8 @@ import { CicilanModal } from '@/components/modals/CicilanModal';
 import { GoalModal } from '@/components/modals/GoalModal';
 import { RecurringModal } from '@/components/modals/RecurringModal';
 import { CategoryModal } from '@/components/modals/CategoryModal';
+
+import { Advisor } from '@/pages/Advisor';
 
 function App() {
   const auth = useAuth();
@@ -99,18 +102,30 @@ function App() {
   const openTransferModal = useCallback(() => { setEditingTr(null); setTransferModal(true); }, []);
   const handleSaveTransfer = useCallback(async (tr: Omit<Transfer, 'id'> & { id?: string }) => {
     if (tr.id) {
-      await deleteTransfer(tr.id);
-      const { error } = await insertTransfer(auth.user!.id, { from_account: tr.from_account, to_account: tr.to_account, amount: tr.amount, note: tr.note, date: tr.date, time: tr.time });
+      const existing = data.transfers.find((t) => t.id === tr.id);
+      if (existing) await deleteTransferWithFee(existing);
+      const { error } = await insertTransferWithFee(auth.user!.id, {
+        from_account: tr.from_account, to_account: tr.to_account, amount: tr.amount,
+        admin_fee: tr.admin_fee, note: tr.note, date: tr.date, time: tr.time,
+      });
       if (error) { alert('Gagal menyimpan transfer: ' + error.message); return; }
     } else {
-      const { error } = await insertTransfer(auth.user!.id, { from_account: tr.from_account, to_account: tr.to_account, amount: tr.amount, note: tr.note, date: tr.date, time: tr.time });
+      const { error } = await insertTransferWithFee(auth.user!.id, {
+        from_account: tr.from_account, to_account: tr.to_account, amount: tr.amount,
+        admin_fee: tr.admin_fee, note: tr.note, date: tr.date, time: tr.time,
+      });
       if (error) { alert('Gagal menyimpan transfer: ' + error.message); return; }
     }
     data.refetch();
   }, [data, auth.user]);
 
   const handleDeleteTransfer = useCallback(async (id: string) => {
-    await deleteTransfer(id);
+    const existing = data.transfers.find((t) => t.id === id);
+    if (existing) await deleteTransferWithFee(existing);
+    else {
+      const { error } = await deleteTransferWithFee({ id, from_account: '', to_account: '', amount: 0, admin_fee: 0, fee_tx_id: null, note: null, date: '', time: null });
+      if (error) { alert('Gagal menghapus transfer: ' + error.message); return; }
+    }
     data.refetch();
   }, [data]);
 
@@ -256,6 +271,21 @@ function App() {
 
   const handleDeleteCategory = useCallback(async (id: string) => {
     await deleteCategory(id);
+    data.refetch();
+  }, [data]);
+
+  const handleAddAccountType = useCallback(async (name: string): Promise<boolean> => {
+    const exists = data.accountTypes.find((t) => t.name.toLowerCase() === name.toLowerCase());
+    if (exists) return false;
+    const { error } = await insertAccountType(auth.user!.id, name);
+    if (error) return false;
+    data.refetch();
+    return true;
+  }, [data, auth.user]);
+
+  const handleDeleteAccountType = useCallback(async (id: string) => {
+    const { error } = await deleteAccountType(id);
+    if (error) { alert('Gagal menghapus tipe akun: ' + error.message); return; }
     data.refetch();
   }, [data]);
 
@@ -409,16 +439,33 @@ function App() {
             onToggleRecurring={handleToggleRecurring}
           />
         )}
+        {currentPage === 'advisor' && (
+          <Advisor
+            accounts={data.accounts}
+            transactions={data.transactions}
+            transfers={data.transfers}
+            openingBalances={data.openingBalances}
+            budgets={data.budgets}
+            categories={data.categories}
+            cicilan={data.cicilan}
+            savingsGoals={data.savingsGoals}
+            recurring={data.recurring}
+          />
+        )}
         {currentPage === 'profile' && (
           <Profile
             profile={profile}
             categories={data.categories}
+            accountTypes={data.accountTypes}
+            accounts={data.accounts}
             onSaveName={auth.updateProfile}
             onUploadAvatar={auth.uploadAvatar}
             onResetPassword={auth.resetPassword}
             onAddCategory={handleAddCategory}
             onDeleteCategory={handleDeleteCategory}
             onReorderCategory={handleReorderCategory}
+            onAddAccountType={handleAddAccountType}
+            onDeleteAccountType={handleDeleteAccountType}
           />
         )}
       </main>
@@ -451,6 +498,7 @@ function App() {
         open={accModal}
         onClose={() => setAccModal(false)}
         editingAcc={editingAcc}
+        accountTypes={data.accountTypes}
         onSave={handleSaveAccount}
         onDelete={handleDeleteAccount}
       />

@@ -6,7 +6,7 @@ export const ACCOUNT_COLORS: Record<string, { bg: string; text: string; label: s
   silver: { bg: 'linear-gradient(135deg,#d9dee8,#aab3c4)', text: '#1b2433', label: 'Silver' },
 };
 
-export const ACCOUNT_TYPES = ['Tabungan', 'Giro/Cek', 'Kartu Kredit', 'E-Wallet', 'Tunai', 'Investasi'];
+export const ACCOUNT_TYPES = ['Bank', 'E-Wallet', 'Tunai', 'Kartu Kredit', 'Investasi', 'Lainnya'];
 
 export const CICILAN_TYPES: Record<string, { label: string; badge: string }> = {
   kredit: { label: 'Kartu Kredit', badge: 'bg-[#1a2e4a] text-[#5C9DFF]' },

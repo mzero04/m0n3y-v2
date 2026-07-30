@@ -1,6 +1,6 @@
 export type PageId =
   | 'dashboard' | 'transactions' | 'accounts' | 'transfer'
-  | 'budget' | 'report' | 'goals' | 'profile';
+  | 'budget' | 'report' | 'goals' | 'advisor' | 'profile';
 
 export type TxType = 'in' | 'out';
 
@@ -37,6 +37,8 @@ export interface Transfer {
   from_account: string;
   to_account: string;
   amount: number;
+  admin_fee: number;
+  fee_tx_id: string | null;
   note: string | null;
   date: string;
   time: string | null;
@@ -83,6 +85,12 @@ export interface RecurringTransaction {
   frequency: string;
   next_due: string;
   active: boolean;
+}
+
+export interface AccountType {
+  id: string;
+  name: string;
+  sort_order: number;
 }
 
 export interface UserProfile {

@@ -17,6 +17,7 @@ export function TransferModal({ open, onClose, accounts, editingTr, onSave, onDe
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [amount, setAmount] = useState('');
+  const [adminFee, setAdminFee] = useState('');
   const [note, setNote] = useState('');
   const [date, setDate] = useState(todayISO());
   const [time, setTime] = useState(nowTime());
@@ -29,6 +30,7 @@ export function TransferModal({ open, onClose, accounts, editingTr, onSave, onDe
         setFrom(editingTr.from_account);
         setTo(editingTr.to_account);
         setAmount(String(editingTr.amount));
+        setAdminFee(editingTr.admin_fee ? String(editingTr.admin_fee) : '');
         setNote(editingTr.note ?? '');
         setDate(editingTr.date);
         setTime(editingTr.time ?? '');
@@ -36,6 +38,7 @@ export function TransferModal({ open, onClose, accounts, editingTr, onSave, onDe
         setFrom(accounts[0]?.name ?? '');
         setTo(accounts[1]?.name ?? accounts[0]?.name ?? '');
         setAmount('');
+        setAdminFee('');
         setNote('');
         setDate(todayISO());
         setTime(nowTime());
@@ -49,7 +52,8 @@ export function TransferModal({ open, onClose, accounts, editingTr, onSave, onDe
     await onSave({
       id: editingTr?.id,
       from_account: from, to_account: to,
-      amount: parseFloat(amount), note: note || null,
+      amount: parseFloat(amount), admin_fee: parseFloat(adminFee) || 0, fee_tx_id: editingTr?.fee_tx_id ?? null,
+      note: note || null,
       date, time: time || null,
     });
     setSaving(false);
@@ -110,6 +114,14 @@ export function TransferModal({ open, onClose, accounts, editingTr, onSave, onDe
           <button type="button" onClick={() => setCalcOpen(true)} className="self-end h-[42px] w-[44px] rounded-[9px] bg-[#0F1A2E] border border-[#223252] text-base cursor-pointer flex items-center justify-center hover:border-[#34D8A6]">
             🧮
           </button>
+        </div>
+
+        <div className="mb-3.5">
+          <label className="label-base">Biaya Admin (Rp) — opsional</label>
+          <input type="number" value={adminFee} onChange={(e) => setAdminFee(e.target.value)} placeholder="0" min="0" className="input-base" />
+          <p className="text-[11.5px] text-[#8C9BBE] mt-2">
+            Biaya admin antar bank akan otomatis tercatat sebagai pengeluaran dari akun asal dengan kategori “Biaya Admin”.
+          </p>
         </div>
 
         <div className="mb-3.5">
