@@ -1,0 +1,186 @@
+import { useState } from 'react';
+import { Trash2, Plus, ChevronUp, ChevronDown } from 'lucide-react';
+import type { Category, UserProfile } from '@/lib/types';
+import { StatusBox } from '@/components/ui/Feedback';
+
+interface ProfileProps {
+  profile: UserProfile;
+  categories: Category[];
+  onSaveName: (name: string) => Promise<{ error: { message: string } | null }>;
+  onUploadAvatar: (file: File) => Promise<string | null>;
+  onResetPassword: (email: string) => Promise<{ error: { message: string } | null }>;
+  onAddCategory: (type: 'in' | 'out', name: string) => Promise<boolean>;
+  onDeleteCategory: (id: string) => Promise<void>;
+  onReorderCategory: (id: string, direction: 'up' | 'down', type: 'in' | 'out') => Promise<void>;
+}
+
+export function Profile({
+  profile, categories, onSaveName, onUploadAvatar, onResetPassword,
+  onAddCategory, onDeleteCategory, onReorderCategory,
+}: ProfileProps) {
+  const [fullName, setFullName] = useState(profile.fullName);
+  const [nameStatus, setNameStatus] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
+  const [avatarStatus, setAvatarStatus] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
+  const [passStatus, setPassStatus] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
+  const [savingName, setSavingName] = useState(false);
+  const [newCatIn, setNewCatIn] = useState('');
+  const [newCatOut, setNewCatOut] = useState('');
+
+  const inCats = categories.filter((c) => c.type === 'in').sort((a, b) => a.sort_order - b.sort_order);
+  const outCats = categories.filter((c) => c.type === 'out').sort((a, b) => a.sort_order - b.sort_order);
+
+  const handleSaveName = async () => {
+    if (!fullName) return;
+    setSavingName(true);
+    const { error } = await onSaveName(fullName);
+    setSavingName(false);
+    setNameStatus(error ? { type: 'error', text: error.message } : { type: 'success', text: 'Nama berhasil disimpan.' });
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      setAvatarStatus({ type: 'error', text: 'Ukuran file maksimal 2MB.' });
+      return;
+    }
+    setAvatarStatus({ type: 'success', text: 'Mengunggah foto...' });
+    try {
+      await onUploadAvatar(file);
+      setAvatarStatus({ type: 'success', text: 'Foto profil berhasil diperbarui.' });
+    } catch {
+      setAvatarStatus({ type: 'error', text: 'Gagal mengunggah foto. Coba lagi.' });
+    }
+  };
+
+  const handleResetPassword = async () => {
+    setPassStatus({ type: 'success', text: 'Mengirim link...' });
+    const { error } = await onResetPassword(profile.email);
+    setPassStatus(error ? { type: 'error', text: error.message } : { type: 'success', text: 'Link reset password telah dikirim ke email kamu.' });
+  };
+
+  const handleAddCat = async (type: 'in' | 'out') => {
+    const name = type === 'in' ? newCatIn : newCatOut;
+    if (!name) return;
+    const ok = await onAddCategory(type, name);
+    if (ok) {
+      if (type === 'in') setNewCatIn(''); else setNewCatOut('');
+    }
+  };
+
+  const renderAvatar = () => {
+    if (profile.avatarUrl) {
+      return <div className="w-[76px] h-[76px] rounded-full bg-cover bg-center border-2 border-[#223252] flex-shrink-0" style={{ backgroundImage: `url(${profile.avatarUrl})` }} />;
+    }
+    return (
+      <div className="w-[76px] h-[76px] rounded-full bg-[#182742] border-2 border-[#223252] flex items-center justify-center text-2xl font-extrabold text-[#34D8A6] flex-shrink-0">
+        {(profile.fullName || '?').charAt(0).toUpperCase()}
+      </div>
+    );
+  };
+
+  const renderCategoryList = (cats: Category[], type: 'in' | 'out') => (
+    <div className="mt-3">
+      <div className="flex gap-2 mb-3">
+        <input
+          type="text"
+          value={type === 'in' ? newCatIn : newCatOut}
+          onChange={(e) => type === 'in' ? setNewCatIn(e.target.value) : setNewCatOut(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleAddCat(type)}
+          placeholder="Tambah kategori baru..."
+          className="input-base flex-1"
+        />
+        <button onClick={() => handleAddCat(type)} className="btn-primary btn-sm"><Plus size={14} /> Tambah</button>
+      </div>
+      <div className="flex flex-col gap-1">
+        {cats.map((c, i) => (
+          <div key={c.id} className="flex items-center justify-between py-2 px-1 bg-[#182742] rounded-md mb-0.5">
+            <div className="flex items-center gap-2 text-[13.5px]">
+              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: c.color ?? (type === 'in' ? '#34D8A6' : '#FF6B6B') }} />
+              {c.name}
+              {c.is_default && <span className="text-[10px] text-[#8C9BBE] font-semibold ml-1">(bawaan)</span>}
+            </div>
+            <div className="flex gap-1">
+              <button onClick={() => onReorderCategory(c.id, 'up', type)} disabled={i === 0} className="text-[#8C9BBE] hover:text-[#34D8A6] disabled:opacity-30 cursor-pointer"><ChevronUp size={16} /></button>
+              <button onClick={() => onReorderCategory(c.id, 'down', type)} disabled={i === cats.length - 1} className="text-[#8C9BBE] hover:text-[#34D8A6] disabled:opacity-30 cursor-pointer"><ChevronDown size={16} /></button>
+              {!c.is_default && (
+                <button onClick={() => onDeleteCategory(c.id)} className="text-[#8C9BBE] hover:text-[#FF6B6B] cursor-pointer ml-1"><Trash2 size={14} /></button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="page-fade">
+      <div className="flex justify-between items-end mb-7 gap-5 flex-wrap max-md:flex-col max-md:items-start max-md:gap-2.5 max-md:mb-4">
+        <div>
+          <h1 className="font-display text-[28px] max-md:text-xl font-bold tracking-tight">Profil</h1>
+          <p className="text-[#8C9BBE] text-sm max-md:text-[13px] mt-1">Kelola informasi akun kamu</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-[18px] max-md:grid-cols-1 max-md:gap-3">
+        {/* Avatar */}
+        <div className="card-base">
+          <h3 className="font-display text-[15px] font-semibold mb-3.5">Foto Profil</h3>
+          <div className="flex items-center gap-[18px] mt-3.5">
+            {renderAvatar()}
+            <div className="flex-1">
+              <input type="file" accept="image/*" className="hidden" id="avatarFileInput" onChange={handleAvatarUpload} />
+              <button onClick={() => document.getElementById('avatarFileInput')?.click()} className="btn-secondary btn-sm">Pilih Foto Baru</button>
+              <p className="text-[11.5px] text-[#8C9BBE] mt-2 leading-relaxed">JPG/PNG, maks 2MB. Foto akan langsung ter-upload setelah dipilih.</p>
+            </div>
+          </div>
+          {avatarStatus && <div className="mt-3"><StatusBox type={avatarStatus.type} text={avatarStatus.text} /></div>}
+        </div>
+
+        {/* Name */}
+        <div className="card-base">
+          <h3 className="font-display text-[15px] font-semibold mb-3.5">Nama Lengkap</h3>
+          <div className="mt-3.5">
+            <label className="label-base">Nama yang ditampilkan</label>
+            <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Nama lengkap kamu" className="input-base" />
+          </div>
+          <button onClick={handleSaveName} disabled={savingName} className="btn-primary btn-sm mt-3" style={{ width: 'auto', padding: '9px 20px' }}>
+            {savingName ? 'Menyimpan...' : 'Simpan Nama'}
+          </button>
+          {nameStatus && <div className="mt-3"><StatusBox type={nameStatus.type} text={nameStatus.text} /></div>}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-[18px] mt-[18px] max-md:grid-cols-1 max-md:gap-3">
+        {/* Email */}
+        <div className="card-base">
+          <h3 className="font-display text-[15px] font-semibold mb-3">Email Akun</h3>
+          <p className="text-sm text-[#EAF0FB] mt-3 font-semibold">{profile.email}</p>
+          <p className="text-xs text-[#8C9BBE] mt-1.5">Email tidak bisa diganti langsung dari sini demi keamanan akun.</p>
+        </div>
+
+        {/* Password reset */}
+        <div className="card-base">
+          <h3 className="font-display text-[15px] font-semibold mb-3">Ganti Password</h3>
+          <p className="text-[12.5px] text-[#8C9BBE] mt-2.5 leading-relaxed">Demi keamanan, kami akan mengirim link verifikasi ke emailmu. Klik link itu untuk mengatur password baru.</p>
+          <button onClick={handleResetPassword} className="btn-secondary btn-sm mt-3" style={{ width: 'auto', padding: '9px 20px' }}>Kirim Link Ganti Password</button>
+          {passStatus && <div className="mt-3"><StatusBox type={passStatus.type} text={passStatus.text} /></div>}
+        </div>
+      </div>
+
+      {/* Categories */}
+      <div className="grid grid-cols-2 gap-[18px] mt-[18px] max-md:grid-cols-1 max-md:gap-3">
+        <div className="card-base">
+          <h3 className="font-display text-[15px] font-semibold">Kategori Pemasukan</h3>
+          <p className="text-xs text-[#8C9BBE] mt-2">Atur urutan pakai panah. Kategori bawaan tidak bisa dihapus, hanya kategori buatanmu sendiri.</p>
+          {renderCategoryList(inCats, 'in')}
+        </div>
+        <div className="card-base">
+          <h3 className="font-display text-[15px] font-semibold">Kategori Pengeluaran</h3>
+          <p className="text-xs text-[#8C9BBE] mt-2">Atur urutan pakai panah. Kategori bawaan tidak bisa dihapus, hanya kategori buatanmu sendiri.</p>
+          {renderCategoryList(outCats, 'out')}
+        </div>
+      </div>
+    </div>
+  );
+}
