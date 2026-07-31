@@ -1,4 +1,4 @@
-import { ArrowLeftRight, Trash2 } from 'lucide-react';
+import { ArrowLeftRight, Pencil, Trash2 } from 'lucide-react';
 import type { Transfer, Account } from '@/lib/types';
 import { formatRupiah, formatDate } from '@/lib/format';
 import { EmptyState } from '@/components/ui/Feedback';
@@ -7,10 +7,11 @@ interface TransferPageProps {
   transfers: Transfer[];
   accounts: Account[];
   onAddTransfer: () => void;
+  onEditTransfer: (tr: Transfer) => void;
   onDeleteTransfer: (id: string) => Promise<void>;
 }
 
-export function TransferPage({ transfers, accounts, onAddTransfer, onDeleteTransfer }: TransferPageProps) {
+export function TransferPage({ transfers, accounts, onAddTransfer, onEditTransfer, onDeleteTransfer }: TransferPageProps) {
   return (
     <div className="page-fade">
       <div className="flex justify-between items-end mb-7 gap-5 flex-wrap max-md:flex-col max-md:items-start max-md:gap-2.5 max-md:mb-4">
@@ -47,9 +48,14 @@ export function TransferPage({ transfers, accounts, onAddTransfer, onDeleteTrans
                     <td className="px-2.5 py-2.5 font-bold text-[#9B8CFF]">{formatRupiah(t.amount)}</td>
                     <td className="px-2.5 py-2.5 font-semibold text-[#FF6B6B]">{t.admin_fee ? formatRupiah(t.admin_fee) : '-'}</td>
                     <td className="px-2.5 py-2.5">
-                      <button onClick={() => onDeleteTransfer(t.id)} className="text-[#8C9BBE] hover:text-[#FF6B6B] transition-colors cursor-pointer">
-                        <Trash2 size={14} />
-                      </button>
+                      <div className="flex items-center gap-2.5">
+                        <button onClick={() => onEditTransfer(t)} className="text-[#8C9BBE] hover:text-[#34D8A6] transition-colors cursor-pointer" title="Edit transfer" aria-label="Edit transfer">
+                          <Pencil size={14} />
+                        </button>
+                        <button onClick={() => onDeleteTransfer(t.id)} className="text-[#8C9BBE] hover:text-[#FF6B6B] transition-colors cursor-pointer" title="Hapus transfer" aria-label="Hapus transfer">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

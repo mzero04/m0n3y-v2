@@ -111,6 +111,7 @@ function App() {
   }, [data]);
 
   const openTransferModal = useCallback(() => { setEditingTr(null); setTransferModal(true); }, []);
+  const openEditTransfer = useCallback((tr: Transfer) => { setEditingTr(tr); setTransferModal(true); }, []);
   const handleSaveTransfer = useCallback(async (tr: Omit<Transfer, 'id'> & { id?: string }) => {
     if (tr.id) {
       const existing = data.transfers.find((t) => t.id === tr.id);
@@ -415,6 +416,7 @@ function App() {
             transfers={data.transfers}
             accounts={data.accounts}
             onAddTransfer={openTransferModal}
+            onEditTransfer={openEditTransfer}
             onDeleteTransfer={handleDeleteTransfer}
           />
         )}
