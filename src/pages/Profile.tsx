@@ -256,24 +256,26 @@ export function Profile({
               </div>
 
               {notifSettings.remind_enabled && (
-                <div className="flex items-center gap-3 pl-11">
+                <div className="flex items-center gap-3 pl-11 max-md:pl-0 max-md:flex-wrap max-md:pt-1">
                   <span className="text-[12px] text-[#8C9BBE] font-semibold">Kirim pengingat jam:</span>
-                  <select
-                    value={notifSettings.remind_hour}
-                    onChange={(e) => onUpdateNotif({ remind_hour: parseInt(e.target.value, 10) })}
-                    className="input-base w-[70px] text-center py-1.5"
-                  >
-                    {Array.from({ length: 24 }, (_, i) => <option key={i} value={i}>{String(i).padStart(2, '0')}</option>)}
-                  </select>
-                  <span className="text-[#8C9BBE] font-bold">:</span>
-                  <select
-                    value={notifSettings.remind_minute}
-                    onChange={(e) => onUpdateNotif({ remind_minute: parseInt(e.target.value, 10) })}
-                    className="input-base w-[70px] text-center py-1.5"
-                  >
-                    {[0, 15, 30, 45].map((m) => <option key={m} value={m}>{String(m).padStart(2, '0')}</option>)}
-                  </select>
-                  <span className="text-[11px] text-[#8C9BBE]">WIB</span>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={notifSettings.remind_hour}
+                      onChange={(e) => onUpdateNotif({ remind_hour: parseInt(e.target.value, 10) })}
+                      className="input-base w-[72px] text-center py-2 max-md:py-2.5"
+                    >
+                      {Array.from({ length: 24 }, (_, i) => <option key={i} value={i}>{String(i).padStart(2, '0')}</option>)}
+                    </select>
+                    <span className="text-[#8C9BBE] font-bold">:</span>
+                    <select
+                      value={notifSettings.remind_minute}
+                      onChange={(e) => onUpdateNotif({ remind_minute: parseInt(e.target.value, 10) })}
+                      className="input-base w-[72px] text-center py-2 max-md:py-2.5"
+                    >
+                      {[0, 15, 30, 45].map((m) => <option key={m} value={m}>{String(m).padStart(2, '0')}</option>)}
+                    </select>
+                    <span className="text-[11px] text-[#8C9BBE]">WIB</span>
+                  </div>
                 </div>
               )}
 
@@ -290,16 +292,17 @@ export function Profile({
               </div>
 
               {notifSettings.daily_limit_enabled && (
-                <div className="pl-11 space-y-3">
-                  <div className="flex items-center gap-3">
+                <div className="pl-11 max-md:pl-0 space-y-3">
+                  <div className="flex items-center gap-3 max-md:flex-wrap">
                     <span className="text-[12px] text-[#8C9BBE] font-semibold">Batas harian:</span>
                     <input
                       type="number"
                       value={notifSettings.daily_limit_amount}
                       onChange={(e) => onUpdateNotif({ daily_limit_amount: Math.max(0, parseInt(e.target.value, 10) || 0) })}
-                      className="input-base w-[140px] py-1.5"
+                      className="input-base w-[160px] py-2 max-md:py-2.5"
                       step={50000}
                       min={0}
+                      inputMode="numeric"
                     />
                     <span className="text-[12px] text-[#8C9BBE]">IDR</span>
                   </div>
@@ -360,14 +363,16 @@ function ToggleSwitch({ checked, onChange }: { checked: boolean; onChange: (v: b
   return (
     <button
       type="button"
+      role="switch"
+      aria-checked={checked}
       onClick={() => onChange(!checked)}
-      className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 cursor-pointer ${
+      className={`relative w-[52px] h-[30px] rounded-full transition-colors flex-shrink-0 cursor-pointer touch-manipulation select-none ${
         checked ? 'bg-[#34D8A6]' : 'bg-[#223252]'
       }`}
     >
       <span
-        className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
-          checked ? 'translate-x-5' : ''
+        className={`absolute top-[3px] left-[3px] w-6 h-6 rounded-full bg-white transition-transform shadow-sm ${
+          checked ? 'translate-x-[22px]' : ''
         }`}
       />
     </button>
