@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import { MailCheck, MailWarning } from 'lucide-react';
 import { StatusBox } from '@/components/ui/Feedback';
 
 interface AuthScreenProps {
   onSignIn: (email: string, password: string) => Promise<{ error: { message: string } | null }>;
-  onSignUp: (email: string, password: string, fullName: string) => Promise<{ error: { message: string } | null }>;
+  onSignUp: (email: string, password: string, fullName: string) => Promise<{ error: { message: string } | null; needsEmailConfirmation?: boolean }>;
   onResetPassword: (email: string) => Promise<{ error: { message: string } | null }>;
 }
 
@@ -15,6 +16,7 @@ export function AuthScreen({ onSignIn, onSignUp, onResetPassword }: AuthScreenPr
   const [status, setStatus] = useState<{ type: 'error' | 'success' | 'info'; text: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [forgotMode, setForgotMode] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
 
   const handleSubmit = async () => {
     setStatus(null);
@@ -40,9 +42,11 @@ export function AuthScreen({ onSignIn, onSignUp, onResetPassword }: AuthScreenPr
       const { error } = await onSignIn(email, password);
       if (error) setStatus({ type: 'error', text: error.message === 'Invalid login credentials' ? 'Email atau password salah.' : error.message });
     } else {
-      const { error } = await onSignUp(email, password, fullName);
+      const { error, needsEmailConfirmation } = await onSignUp(email, password, fullName);
       if (error) {
         setStatus({ type: 'error', text: error.message });
+      } else if (needsEmailConfirmation) {
+        setEmailSent(true);
       } else {
         setStatus({ type: 'success', text: 'Akun berhasil dibuat! Silakan masuk.' });
         setMode('login');
@@ -50,6 +54,38 @@ export function AuthScreen({ onSignIn, onSignUp, onResetPassword }: AuthScreenPr
     }
     setLoading(false);
   };
+
+  if (emailSent) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center z-[200]
+                      bg-[radial-gradient(900px_700px_at_50%_30%,#0e1f3e,#0B1220_70%)]
+                      max-md:p-0">
+        <div className="w-[420px] max-w-[92vw] max-md:w-full max-md:max-w-full
+                        bg-[#131F36] border border-[#223252] rounded-[22px] max-md:rounded-none
+                        p-9 max-md:min-h-screen max-md:flex max-md:flex-col max-md:justify-center max-md:p-6 text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-[#34D8A6]/20 to-[#34D8A6]/5 border border-[#34D8A6]/30 mx-auto mb-5">
+            <MailCheck size={32} className="text-[#34D8A6]" />
+          </div>
+          <h2 className="font-display font-extrabold text-2xl max-md:text-xl mb-2">Cek Email Kamu!</h2>
+          <p className="text-[#8C9BBE] text-[13.5px] leading-relaxed mb-5">
+            Kami telah mengirim <b className="text-[#EAF0FB]">link konfirmasi</b> ke
+            <br /><b className="text-[#34D8A6]">{email}</b>
+            <br /><br />
+            Klik link di email tersebut untuk mengaktifkan akunmu, lalu masuk dengan email dan password yang kamu buat.
+          </p>
+          <div className="p-3.5 rounded-xl bg-[#182742] border border-[#223252] text-left mb-5">
+            <p className="text-[11.5px] text-[#8C9BBE] leading-relaxed">
+              <MailWarning size={13} className="inline mr-1 -mt-0.5 text-[#F2B84B]" />
+              <b className="text-[#EAF0FB]">Belum menerima email?</b> Tunggu 1-2 menit, cek juga folder Spam/Promosi. Pastikan email yang kamu masukkan benar.
+            </p>
+          </div>
+          <button onClick={() => { setEmailSent(false); setMode('login'); }} className="btn-primary w-full">
+            Kembali ke Login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-[200]

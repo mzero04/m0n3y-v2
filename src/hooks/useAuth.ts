@@ -8,6 +8,7 @@ export interface AuthState {
   loading: boolean;
   fullName: string;
   avatarUrl: string | null;
+  passwordRecovery: boolean;
 }
 
 export function useAuth() {
@@ -17,22 +18,26 @@ export function useAuth() {
     loading: true,
     fullName: '',
     avatarUrl: null,
+    passwordRecovery: false,
   });
+
+  const getRedirectUrl = () => `${window.location.origin}/`;
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       const user = session?.user ?? null;
       const fullName = (user?.user_metadata?.full_name as string) ?? '';
       const avatarUrl = (user?.user_metadata?.avatar_url as string) ?? null;
-      setState({ session, user, loading: false, fullName, avatarUrl });
+      setState({ session, user, loading: false, fullName, avatarUrl, passwordRecovery: false });
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       (async () => {
         const user = session?.user ?? null;
         const fullName = (user?.user_metadata?.full_name as string) ?? '';
         const avatarUrl = (user?.user_metadata?.avatar_url as string) ?? null;
-        setState({ session, user, loading: false, fullName, avatarUrl });
+        const passwordRecovery = event === 'PASSWORD_RECOVERY';
+        setState({ session, user, loading: false, fullName, avatarUrl, passwordRecovery });
       })();
     });
 
@@ -48,9 +53,13 @@ export function useAuth() {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: fullName } },
+      options: {
+        data: { full_name: fullName },
+        emailRedirectTo: getRedirectUrl(),
+      },
     });
-    return { data, error };
+    const needsEmailConfirmation = !data.session && !error;
+    return { data, error, needsEmailConfirmation };
   }, []);
 
   const signOut = useCallback(async () => {
@@ -58,7 +67,17 @@ export function useAuth() {
   }, []);
 
   const resetPassword = useCallback(async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: getRedirectUrl(),
+    });
+    return { error };
+  }, []);
+
+  const updatePassword = useCallback(async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (!error) {
+      setState((s) => ({ ...s, passwordRecovery: false }));
+    }
     return { error };
   }, []);
 
@@ -97,6 +116,7 @@ export function useAuth() {
     signUp,
     signOut,
     resetPassword,
+    updatePassword,
     updateProfile,
     uploadAvatar,
   };

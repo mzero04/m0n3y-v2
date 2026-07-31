@@ -19,6 +19,7 @@ import {
 
 import { Spinner } from '@/components/ui/Feedback';
 import { AuthScreen } from '@/components/AuthScreen';
+import { ResetPasswordScreen } from '@/components/ResetPasswordScreen';
 import { Sidebar, MobileTopBar } from '@/components/Navigation';
 import { Fab } from '@/components/Fab';
 
@@ -41,11 +42,21 @@ import { RecurringModal } from '@/components/modals/RecurringModal';
 import { CategoryModal } from '@/components/modals/CategoryModal';
 
 import { Advisor } from '@/pages/Advisor';
+import { useNotificationSettings } from '@/hooks/useNotificationSettings';
+import { useNotificationManager } from '@/hooks/useNotificationManager';
 
 function App() {
   const auth = useAuth();
   const data = useFinanceData(auth.user?.id ?? null);
   const isMobile = useIsMobile();
+  const notif = useNotificationSettings(auth.user?.id ?? null);
+  useNotificationManager({
+    userId: auth.user?.id ?? null,
+    settings: notif.settings,
+    settingsLoading: notif.loading,
+    transactions: data.transactions,
+    requestPermission: notif.requestPermission,
+  });
 
   const [currentPage, setCurrentPage] = useState<PageId>('dashboard');
 
@@ -307,6 +318,15 @@ function App() {
     return <Spinner text="Memuat Catatan Keuangan..." />;
   }
 
+  if (auth.passwordRecovery) {
+    return (
+      <ResetPasswordScreen
+        onUpdatePassword={auth.updatePassword}
+        onBackToLogin={() => { auth.signOut(); }}
+      />
+    );
+  }
+
   if (!auth.session) {
     return <AuthScreen onSignIn={auth.signIn} onSignUp={auth.signUp} onResetPassword={auth.resetPassword} />;
   }
@@ -458,6 +478,11 @@ function App() {
             categories={data.categories}
             accountTypes={data.accountTypes}
             accounts={data.accounts}
+            notifSettings={notif.settings}
+            notifLoading={notif.loading}
+            notifPermission={notif.permission}
+            onUpdateNotif={notif.update}
+            onRequestNotifPermission={notif.requestPermission}
             onSaveName={auth.updateProfile}
             onUploadAvatar={auth.uploadAvatar}
             onResetPassword={auth.resetPassword}

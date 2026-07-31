@@ -99,3 +99,12 @@ export interface UserProfile {
   fullName: string;
   avatarUrl: string | null;
 }
+
+export interface NotificationSettings {
+  remind_enabled: boolean;
+  remind_hour: number;
+  remind_minute: number;
+  daily_limit_enabled: boolean;
+  daily_limit_amount: number;
+  daily_limit_notify: boolean;
+}

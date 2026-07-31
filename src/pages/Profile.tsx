@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Trash2, Plus, ChevronUp, ChevronDown } from 'lucide-react';
-import type { Category, UserProfile, AccountType, Account } from '@/lib/types';
+import { Trash2, Plus, ChevronUp, ChevronDown, Bell, BellOff, AlertTriangle, Clock } from 'lucide-react';
+import type { Category, UserProfile, AccountType, Account, NotificationSettings } from '@/lib/types';
 import { StatusBox } from '@/components/ui/Feedback';
 
 interface ProfileProps {
@@ -8,6 +8,11 @@ interface ProfileProps {
   categories: Category[];
   accountTypes: AccountType[];
   accounts: Account[];
+  notifSettings: NotificationSettings;
+  notifLoading: boolean;
+  notifPermission: NotificationPermission | 'unsupported';
+  onUpdateNotif: (partial: Partial<NotificationSettings>) => Promise<void>;
+  onRequestNotifPermission: () => Promise<boolean>;
   onSaveName: (name: string) => Promise<{ error: { message: string } | null }>;
   onUploadAvatar: (file: File) => Promise<string | null>;
   onResetPassword: (email: string) => Promise<{ error: { message: string } | null }>;
@@ -19,7 +24,9 @@ interface ProfileProps {
 }
 
 export function Profile({
-  profile, categories, accountTypes, accounts, onSaveName, onUploadAvatar, onResetPassword,
+  profile, categories, accountTypes, accounts,
+  notifSettings, notifLoading, notifPermission, onUpdateNotif, onRequestNotifPermission,
+  onSaveName, onUploadAvatar, onResetPassword,
   onAddCategory, onDeleteCategory, onReorderCategory, onAddAccountType, onDeleteAccountType,
 }: ProfileProps) {
   const [fullName, setFullName] = useState(profile.fullName);
@@ -78,6 +85,8 @@ export function Profile({
     const ok = await onAddAccountType(newType);
     if (ok) setNewType('');
   };
+
+  const formatLimit = (n: number) => 'Rp ' + Math.round(n).toLocaleString('id-ID');
 
   const handleDeleteType = (id: string, name: string) => {
     const inUse = accounts.filter((a) => a.type === name).length;
@@ -202,6 +211,116 @@ export function Profile({
         </div>
       </div>
 
+      {/* Notification Settings */}
+      <div className="card-base mt-[18px]">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-display text-[15px] font-semibold flex items-center gap-2">
+            <Bell size={16} className="text-[#9B8CFF]" /> Notifikasi & Pengingat
+          </h3>
+          {notifPermission === 'granted' && (
+            <span className="text-[10px] font-semibold text-[#34D8A6] bg-[#34D8A6]/10 px-2 py-0.5 rounded-full">AKTIF</span>
+          )}
+        </div>
+
+        {notifLoading ? (
+          <p className="text-[#8C9BBE] text-sm py-4">Memuat pengaturan...</p>
+        ) : (
+          <>
+            {notifPermission !== 'granted' && notifPermission !== 'unsupported' && (
+              <div className="mb-4 p-3.5 rounded-xl bg-[#F2B84B]/8 border border-[#F2B84B]/30 flex items-start gap-3">
+                <BellOff size={18} className="text-[#F2B84B] flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-[12.5px] text-[#EAF0FB] font-semibold">Notifikasi browser belum diaktifkan</p>
+                  <p className="text-[11.5px] text-[#8C9BBE] mt-0.5 leading-relaxed">Aktifkan agar pengingat & peringatan bisa muncul di layarmu.</p>
+                  <button onClick={onRequestNotifPermission} className="btn-primary btn-sm mt-2.5" style={{ width: 'auto', padding: '7px 16px' }}>Aktifkan Notifikasi</button>
+                </div>
+              </div>
+            )}
+            {notifPermission === 'unsupported' && (
+              <div className="mb-4 p-3 rounded-xl bg-[#182742]">
+                <p className="text-[11.5px] text-[#8C9BBE]">Browser kamu tidak mendukung notifikasi. Pengingat tidak akan berfungsi.</p>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              {/* Reminder toggle */}
+              <div className="flex items-start justify-between gap-4 p-3.5 rounded-xl bg-[#182742]">
+                <div className="flex items-start gap-3 flex-1">
+                  <Clock size={18} className="text-[#34D8A6] flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-[13.5px] font-semibold">Pengingat Harian</p>
+                    <p className="text-[11.5px] text-[#8C9BBE] mt-0.5 leading-relaxed">Beri tahu kamu jika belum mencatat transaksi pada jam yang ditentukan.</p>
+                  </div>
+                </div>
+                <ToggleSwitch checked={notifSettings.remind_enabled} onChange={(v) => onUpdateNotif({ remind_enabled: v })} />
+              </div>
+
+              {notifSettings.remind_enabled && (
+                <div className="flex items-center gap-3 pl-11">
+                  <span className="text-[12px] text-[#8C9BBE] font-semibold">Kirim pengingat jam:</span>
+                  <select
+                    value={notifSettings.remind_hour}
+                    onChange={(e) => onUpdateNotif({ remind_hour: parseInt(e.target.value, 10) })}
+                    className="input-base w-[70px] text-center py-1.5"
+                  >
+                    {Array.from({ length: 24 }, (_, i) => <option key={i} value={i}>{String(i).padStart(2, '0')}</option>)}
+                  </select>
+                  <span className="text-[#8C9BBE] font-bold">:</span>
+                  <select
+                    value={notifSettings.remind_minute}
+                    onChange={(e) => onUpdateNotif({ remind_minute: parseInt(e.target.value, 10) })}
+                    className="input-base w-[70px] text-center py-1.5"
+                  >
+                    {[0, 15, 30, 45].map((m) => <option key={m} value={m}>{String(m).padStart(2, '0')}</option>)}
+                  </select>
+                  <span className="text-[11px] text-[#8C9BBE]">WIB</span>
+                </div>
+              )}
+
+              {/* Daily limit toggle */}
+              <div className="flex items-start justify-between gap-4 p-3.5 rounded-xl bg-[#182742]">
+                <div className="flex items-start gap-3 flex-1">
+                  <AlertTriangle size={18} className="text-[#FF6B6B] flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-[13.5px] font-semibold">Batas Pengeluaran Harian</p>
+                    <p className="text-[11.5px] text-[#8C9BBE] mt-0.5 leading-relaxed">Kirim peringatan jika total pengeluaran hari ini melebihi batas yang kamu tetapkan.</p>
+                  </div>
+                </div>
+                <ToggleSwitch checked={notifSettings.daily_limit_enabled} onChange={(v) => onUpdateNotif({ daily_limit_enabled: v })} />
+              </div>
+
+              {notifSettings.daily_limit_enabled && (
+                <div className="pl-11 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-[12px] text-[#8C9BBE] font-semibold">Batas harian:</span>
+                    <input
+                      type="number"
+                      value={notifSettings.daily_limit_amount}
+                      onChange={(e) => onUpdateNotif({ daily_limit_amount: Math.max(0, parseInt(e.target.value, 10) || 0) })}
+                      className="input-base w-[140px] py-1.5"
+                      step={50000}
+                      min={0}
+                    />
+                    <span className="text-[12px] text-[#8C9BBE]">IDR</span>
+                  </div>
+                  <div className="text-[11px] text-[#8C9BBE]">Saat ini: {formatLimit(notifSettings.daily_limit_amount)} per hari</div>
+                  <div className="flex items-center gap-3">
+                    <ToggleSwitch checked={notifSettings.daily_limit_notify} onChange={(v) => onUpdateNotif({ daily_limit_notify: v })} />
+                    <span className="text-[12px] text-[#B8C5E0]">Tampilkan notifikasi saat batas terlampaui</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4 p-3 rounded-xl bg-[#131F36] border border-[#223252]">
+              <p className="text-[11px] text-[#8C9BBE] leading-relaxed">
+                Notifikasi hanya muncul saat aplikasi terbuka di browser. Pastikan tab ini tetap aktif agar pengingat berfungsi.
+              </p>
+            </div>
+          </>
+        )}
+      </div>
+
       {/* Account Types */}
       <div className="card-base mt-[18px]">
         <h3 className="font-display text-[15px] font-semibold">Tipe Akun Bank</h3>
@@ -234,5 +353,23 @@ export function Profile({
         </div>
       </div>
     </div>
+  );
+}
+
+function ToggleSwitch({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 cursor-pointer ${
+        checked ? 'bg-[#34D8A6]' : 'bg-[#223252]'
+      }`}
+    >
+      <span
+        className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+          checked ? 'translate-x-5' : ''
+        }`}
+      />
+    </button>
   );
 }
